@@ -1,33 +1,32 @@
-import React, { useEffect, useState } from "react";
-import { apiFetch, getBaseUrl, setBaseUrl } from "../api.js";
+import React, { useState } from "react";
+import { apiFetch } from "../api.js";
 
 function RecommendationList({ items }) {
   if (!items || items.length === 0) return <p className="muted">No recommendations yet.</p>;
   return (
-    <div className="list">
+    <div className="feed">
       {items.map((item, idx) => (
-        <div className="card" key={`${item.course_id}-${idx}`}>
-          <strong>{item.course_id}</strong>
-          <br />
-          <span className="small">score: {Number(item.score).toFixed(2)}</span>
-        </div>
+        <article className="tile" key={`${item.course_id}-${idx}`}>
+          <header className="tile__header">
+            <strong>{item.course_id}</strong>
+            <span className="badge ghost">Score {Number(item.score).toFixed(2)}</span>
+          </header>
+        </article>
       ))}
     </div>
   );
 }
 
-export default function Neo4jView() {
-  const [apiBase, setApiBaseState] = useState(getBaseUrl());
-  const [status, setStatus] = useState({ text: "", error: false });
+export default function Neo4jView({ apiBase, onFlash }) {
+  const [status, setStatus] = useState({ text: "Ready", error: false });
   const [progress, setProgress] = useState({ user_id: "", course_id: "", level: "" });
   const [recommendUser, setRecommendUser] = useState("");
   const [recommendations, setRecommendations] = useState([]);
 
-  useEffect(() => {
-    setBaseUrl(apiBase);
-  }, [apiBase]);
-
-  const updateStatus = (text, error = false) => setStatus({ text, error });
+  const updateStatus = (text, error = false) => {
+    setStatus({ text, error });
+    if (!error && onFlash) onFlash(text);
+  };
 
   const handleProgressSubmit = async (e) => {
     e.preventDefault();
@@ -71,61 +70,74 @@ export default function Neo4jView() {
   };
 
   return (
-    <>
-      <section className="panel inline">
-        <label htmlFor="apiBase">API base</label>
-        <input
-          id="apiBase"
-          type="text"
-          value={apiBase}
-          onChange={(e) => setApiBaseState(e.target.value)}
-          placeholder="http://localhost:8000"
-        />
-        <p className="muted small">Applied to all requests on this page.</p>
-      </section>
-
+    <div className="stack">
       <section className="panel">
-        <h2>Record progress</h2>
-        <form className="grid" style={{ gap: 10 }} onSubmit={handleProgressSubmit}>
-          <input
-            type="text"
-            placeholder="user_id"
-            value={progress.user_id}
-            onChange={(e) => setProgress({ ...progress, user_id: e.target.value })}
-          />
-          <input
-            type="text"
-            placeholder="course_id"
-            value={progress.course_id}
-            onChange={(e) => setProgress({ ...progress, course_id: e.target.value })}
-          />
-          <input
-            type="text"
-            placeholder="level (optional)"
-            value={progress.level}
-            onChange={(e) => setProgress({ ...progress, level: e.target.value })}
-          />
-          <button type="submit">Save progress</button>
-        </form>
-      </section>
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Neo4j</p>
+            <h3>Learning mentor</h3>
+            <p className="muted small">Send learner progress and retrieve ordered recommendations.</p>
+          </div>
+          <span className="badge ghost">Base {apiBase}</span>
+        </div>
 
-      <section className="panel">
-        <h2>Get recommendations</h2>
-        <form className="inline" onSubmit={handleRecommendSubmit}>
-          <input
-            type="text"
-            placeholder="user_id"
-            value={recommendUser}
-            onChange={(e) => setRecommendUser(e.target.value)}
-          />
-          <button type="submit">Fetch</button>
-        </form>
-        <div style={{ marginTop: 12 }}>
-          <RecommendationList items={recommendations} />
+        <div className="grid two-col">
+          <div className="tile">
+            <header className="tile__header">
+              <div>
+                <p className="eyebrow">Progress</p>
+                <strong>Record completion</strong>
+              </div>
+              <span className="badge success">POST /recommend/progress</span>
+            </header>
+            <form className="stack" onSubmit={handleProgressSubmit}>
+              <input
+                type="text"
+                placeholder="user_id"
+                value={progress.user_id}
+                onChange={(e) => setProgress({ ...progress, user_id: e.target.value })}
+              />
+              <input
+                type="text"
+                placeholder="course_id"
+                value={progress.course_id}
+                onChange={(e) => setProgress({ ...progress, course_id: e.target.value })}
+              />
+              <input
+                type="text"
+                placeholder="level (optional)"
+                value={progress.level}
+                onChange={(e) => setProgress({ ...progress, level: e.target.value })}
+              />
+              <button type="submit">Save progress</button>
+            </form>
+          </div>
+
+          <div className="tile">
+            <header className="tile__header">
+              <div>
+                <p className="eyebrow">Recommendations</p>
+                <strong>Fetch courses</strong>
+              </div>
+              <span className="badge">GET /recommend/:user_id</span>
+            </header>
+            <form className="inline-actions" onSubmit={handleRecommendSubmit}>
+              <input
+                type="text"
+                placeholder="user_id"
+                value={recommendUser}
+                onChange={(e) => setRecommendUser(e.target.value)}
+              />
+              <button type="submit">Fetch</button>
+            </form>
+            <RecommendationList items={recommendations} />
+          </div>
         </div>
       </section>
 
-      <p className="status" style={{ color: status.error ? "#ffb3b3" : undefined }}>{status.text}</p>
-    </>
+      <div className={`status-bar ${status.error ? "error" : ""}`}>
+        <span>{status.text}</span>
+      </div>
+    </div>
   );
 }

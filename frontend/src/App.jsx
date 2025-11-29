@@ -1,58 +1,45 @@
-import React, { useState } from "react";
-import CassandraView from "./views/CassandraView.jsx";
-import Neo4jView from "./views/Neo4jView.jsx";
-
-const tabs = [
-  { key: "home", label: "Home" },
-  { key: "cassandra", label: "Cassandra" },
-  { key: "neo4j", label: "Neo4j" }
-];
+import { Link, Navigate, Route, Routes } from "react-router-dom";
+import { CourseThreadsPage } from "./pages/CourseThreadsPage.tsx";
+import { ThreadPage } from "./pages/ThreadPage.tsx";
+import { UserPostsPage } from "./pages/UserPostsPage.tsx";
+import { ProgressPage } from "./pages/ProgressPage.tsx";
+import { RecommendPage } from "./pages/RecommendPage.tsx";
+import { HomePage } from "./pages/HomePage.tsx";
 
 export default function App() {
-  const [active, setActive] = useState("home");
-
-  const renderBody = () => {
-    if (active === "cassandra") return <CassandraView />;
-    if (active === "neo4j") return <Neo4jView />;
-    return (
-      <section className="panel">
-        <h2>Choose a backend</h2>
-        <p className="muted">
-          Two dedicated workspaces: Cassandra for threads/posts and Neo4j for course recommendations.
-        </p>
-        <div className="grid cards">
-          <button className="card" onClick={() => setActive("cassandra")}>
-            <h3>Cassandra Threads</h3>
-            <p>Create threads, list by course, browse posts, and add replies.</p>
-            <span className="pill">Uses /threads and /posts APIs</span>
-          </button>
-          <button className="card" onClick={() => setActive("neo4j")}>
-            <h3>Neo4j Recommendations</h3>
-            <p>Record user progress and fetch course recommendations.</p>
-            <span className="pill">Uses /recommend APIs</span>
-          </button>
-        </div>
-      </section>
-    );
-  };
-
   return (
-    <>
-      <header>
-        <h1>BDNR Playground</h1>
-        <nav>
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              className={`nav-btn ${active === t.key ? "active" : ""}`}
-              onClick={() => setActive(t.key)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
+    <div className="min-h-screen bg-[#0b1220] text-slate-50">
+      <header className="border-b border-white/10 bg-white/5 backdrop-blur px-4 py-3">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
+          <Link to="/" className="font-bold tracking-tight">
+            BDNR frontend
+          </Link>
+          <nav className="flex gap-3 text-sm text-slate-200">
+            <Link className="hover:underline" to="/recommend">
+              Recomendaciones
+            </Link>
+            <Link className="hover:underline" to="/recommend/progress">
+              Progreso
+            </Link>
+            <Link className="hover:underline" to="/users/demo-user/posts">
+              Posts usuario
+            </Link>
+          </nav>
+        </div>
       </header>
-      <main className="page">{renderBody()}</main>
-    </>
+
+      <main>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/courses/:courseId/threads" element={<CourseThreadsPage />} />
+          <Route path="/threads/:threadId" element={<ThreadPage />} />
+          <Route path="/users/:userId/posts" element={<UserPostsPage />} />
+          <Route path="/recommend/progress" element={<ProgressPage />} />
+          <Route path="/recommend/:userId" element={<RecommendPage />} />
+          <Route path="/recommend" element={<RecommendPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+    </div>
   );
 }

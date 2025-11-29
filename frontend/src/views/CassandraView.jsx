@@ -1,24 +1,22 @@
-import React, { useEffect, useState } from "react";
-import { apiFetch, getBaseUrl, setBaseUrl } from "../api.js";
+import React, { useState } from "react";
+import { apiFetch } from "../api.js";
 
 function ThreadsList({ items }) {
-  if (!items || items.length === 0) return <p className="muted">No threads found for that course.</p>;
+  if (!items || items.length === 0) return <p className="muted">No threads for that course yet.</p>;
   return (
-    <div className="list">
+    <div className="feed">
       {items.map((t) => (
-        <div className="card" key={t.thread_id}>
-          <strong>{t.title}</strong>
-          <br />
-          <span className="muted">thread_id: {t.thread_id}</span>
-          <br />
-          <span className="small">
-            Author: {t.author_id} · Created: {new Date(t.created_at).toLocaleString()}
-          </span>
-          <br />
-          <span className="small">
-            Last activity: {t.last_activity_at ? new Date(t.last_activity_at).toLocaleString() : "-"}
-          </span>
-        </div>
+        <article className="tile" key={t.thread_id}>
+          <header className="tile__header">
+            <strong>{t.title}</strong>
+            <span className="badge ghost">{t.thread_id}</span>
+          </header>
+          <p className="muted small">Course {t.course_id} · Author {t.author_id}</p>
+          <p className="small">
+            Created {new Date(t.created_at).toLocaleString()} · Last activity{" "}
+            {t.last_activity_at ? new Date(t.last_activity_at).toLocaleString() : "-"}
+          </p>
+        </article>
       ))}
     </div>
   );
@@ -27,15 +25,19 @@ function ThreadsList({ items }) {
 function ThreadDetail({ data }) {
   if (!data) return <p className="muted">No thread loaded.</p>;
   return (
-    <div className="panel" style={{ marginTop: 12 }}>
-      <h3>{data.title}</h3>
-      <p className="small">thread_id: {data.thread_id}</p>
-      <p className="small">Course: {data.course_id} · Author: {data.author_id}</p>
-      <p className="small">
-        Created: {new Date(data.created_at).toLocaleString()} · Last activity:{" "}
-        {data.last_activity_at ? new Date(data.last_activity_at).toLocaleString() : "-"}
-      </p>
-      <p className="pill">Posts: {data.post_count ?? 0}</p>
+    <div className="thread-detail">
+      <div>
+        <p className="eyebrow">Thread</p>
+        <h3>{data.title}</h3>
+        <p className="muted small">
+          Course {data.course_id} · Author {data.author_id}
+        </p>
+        <p className="small">
+          Created {new Date(data.created_at).toLocaleString()} · Last activity{" "}
+          {data.last_activity_at ? new Date(data.last_activity_at).toLocaleString() : "-"}
+        </p>
+      </div>
+      <div className="pill">Posts: {data.post_count ?? 0}</div>
     </div>
   );
 }
@@ -43,23 +45,23 @@ function ThreadDetail({ data }) {
 function PostsList({ items }) {
   if (!items || items.length === 0) return <p className="muted">No posts yet.</p>;
   return (
-    <div className="list">
+    <div className="feed">
       {items.map((p) => (
-        <div className="card" key={p.post_id}>
-          <strong>{p.user_id}</strong>
+        <article className="tile" key={p.post_id}>
+          <header className="tile__header">
+            <strong>{p.user_id}</strong>
+            <span className="badge">{p.post_id}</span>
+          </header>
           <p>{p.content}</p>
-          <span className="small">post_id: {p.post_id}</span>
-          <br />
-          <span className="muted">{p.created_at ? new Date(p.created_at).toLocaleString() : ""}</span>
-        </div>
+          <p className="muted small">{p.created_at ? new Date(p.created_at).toLocaleString() : ""}</p>
+        </article>
       ))}
     </div>
   );
 }
 
-export default function CassandraView() {
-  const [apiBase, setApiBaseState] = useState(getBaseUrl());
-  const [status, setStatus] = useState({ text: "", error: false });
+export default function CassandraView({ apiBase, onFlash }) {
+  const [status, setStatus] = useState({ text: "Ready", error: false });
   const [threads, setThreads] = useState([]);
   const [threadDetail, setThreadDetail] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -70,11 +72,10 @@ export default function CassandraView() {
   const [loadId, setLoadId] = useState("");
   const [postForm, setPostForm] = useState({ user_id: "", content: "" });
 
-  useEffect(() => {
-    setBaseUrl(apiBase);
-  }, [apiBase]);
-
-  const updateStatus = (text, error = false) => setStatus({ text, error });
+  const updateStatus = (text, error = false) => {
+    setStatus({ text, error });
+    if (!error && onFlash) onFlash(text);
+  };
 
   const handleLoadThreads = async (e) => {
     e.preventDefault();
@@ -98,7 +99,7 @@ export default function CassandraView() {
     e.preventDefault();
     const { course_id, title, author_id } = createForm;
     if (!course_id.trim() || !title.trim() || !author_id.trim()) {
-      updateStatus("Fill in course, title, and author.", true);
+      updateStatus("Fill course, title, and author.", true);
       return;
     }
     updateStatus("Creating thread...");
@@ -172,106 +173,148 @@ export default function CassandraView() {
   };
 
   return (
-    <>
-      <section className="panel inline">
-        <label htmlFor="apiBase">API base</label>
-        <input
-          id="apiBase"
-          type="text"
-          value={apiBase}
-          onChange={(e) => setApiBaseState(e.target.value)}
-          placeholder="http://localhost:8000"
-        />
-        <p className="muted small">Applied to all requests on this page.</p>
-      </section>
-
+    <div className="stack">
       <section className="panel">
-        <h2>Create thread</h2>
-        <form className="grid" style={{ gap: 10 }} onSubmit={handleCreateThread}>
-          <input
-            type="text"
-            placeholder="course_id"
-            value={createForm.course_id}
-            onChange={(e) => setCreateForm({ ...createForm, course_id: e.target.value })}
-          />
-          <input
-            type="text"
-            placeholder="title"
-            value={createForm.title}
-            onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
-          />
-          <input
-            type="text"
-            placeholder="author_id"
-            value={createForm.author_id}
-            onChange={(e) => setCreateForm({ ...createForm, author_id: e.target.value })}
-          />
-          <button type="submit">Create</button>
-        </form>
-      </section>
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Cassandra</p>
+            <h3>Threads and posts</h3>
+            <p className="muted small">Create threads, browse a course, and drill into details.</p>
+          </div>
+          <span className="badge ghost">Base {apiBase}</span>
+        </div>
 
-      <section className="panel">
-        <h2>List threads by course</h2>
-        <form className="inline" onSubmit={handleLoadThreads}>
-          <input
-            type="text"
-            placeholder="course_id"
-            value={listForm.courseId}
-            onChange={(e) => setListForm({ ...listForm, courseId: e.target.value })}
-          />
-          <input
-            type="number"
-            min="1"
-            max="200"
-            value={listForm.limit}
-            onChange={(e) => setListForm({ ...listForm, limit: Number(e.target.value) || 1 })}
-          />
-          <button type="submit">Fetch</button>
-        </form>
-        <div style={{ marginTop: 12 }}>
-          <ThreadsList items={threads} />
+        <div className="grid two-col">
+          <div className="tile">
+            <header className="tile__header">
+              <div>
+                <p className="eyebrow">New thread</p>
+                <strong>Create</strong>
+              </div>
+              <span className="badge success">POST /threads/</span>
+            </header>
+            <form className="stack" onSubmit={handleCreateThread}>
+              <input
+                type="text"
+                placeholder="course_id"
+                value={createForm.course_id}
+                onChange={(e) => setCreateForm({ ...createForm, course_id: e.target.value })}
+              />
+              <input
+                type="text"
+                placeholder="title"
+                value={createForm.title}
+                onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+              />
+              <input
+                type="text"
+                placeholder="author_id"
+                value={createForm.author_id}
+                onChange={(e) => setCreateForm({ ...createForm, author_id: e.target.value })}
+              />
+              <button type="submit">Create thread</button>
+            </form>
+          </div>
+
+          <div className="tile">
+            <header className="tile__header">
+              <div>
+                <p className="eyebrow">Course feed</p>
+                <strong>List threads</strong>
+              </div>
+              <span className="badge">GET /threads/course/</span>
+            </header>
+            <form className="inline-actions" onSubmit={handleLoadThreads}>
+              <input
+                type="text"
+                placeholder="course_id"
+                value={listForm.courseId}
+                onChange={(e) => setListForm({ ...listForm, courseId: e.target.value })}
+              />
+              <input
+                type="number"
+                min="1"
+                max="200"
+                value={listForm.limit}
+                onChange={(e) => setListForm({ ...listForm, limit: Number(e.target.value) || 1 })}
+              />
+              <button type="submit">Fetch</button>
+            </form>
+            <ThreadsList items={threads} />
+          </div>
         </div>
       </section>
 
       <section className="panel">
-        <h2>Thread details & posts</h2>
-        <form className="inline" onSubmit={handleLoadThreadSubmit}>
-          <input
-            type="text"
-            placeholder="thread_id"
-            value={loadId}
-            onChange={(e) => setLoadId(e.target.value)}
-          />
-          <button type="submit">Load</button>
-        </form>
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Thread deep dive</p>
+            <h3>Load details & posts</h3>
+          </div>
+          <span className="badge ghost">{currentThreadId ? `Thread ${currentThreadId}` : "No thread loaded"}</span>
+        </div>
 
-        <ThreadDetail data={threadDetail} />
+        <div className="grid two-col">
+          <div className="tile">
+            <header className="tile__header">
+              <div>
+                <p className="eyebrow">Lookup</p>
+                <strong>Load thread</strong>
+              </div>
+              <span className="badge">GET /threads/:id</span>
+            </header>
+            <form className="inline-actions" onSubmit={handleLoadThreadSubmit}>
+              <input
+                type="text"
+                placeholder="thread_id"
+                value={loadId}
+                onChange={(e) => setLoadId(e.target.value)}
+              />
+              <button type="submit">Load</button>
+            </form>
+            <ThreadDetail data={threadDetail} />
+          </div>
 
-        <div className="panel" style={{ marginTop: 12 }}>
-          <h3>Posts</h3>
+          <div className="tile">
+            <header className="tile__header">
+              <div>
+                <p className="eyebrow">Reply</p>
+                <strong>Add post</strong>
+              </div>
+              <span className="badge success">POST /posts/:thread_id</span>
+            </header>
+            <form className="stack" onSubmit={handleAddPost}>
+              <input
+                type="text"
+                placeholder="user_id"
+                value={postForm.user_id}
+                onChange={(e) => setPostForm({ ...postForm, user_id: e.target.value })}
+              />
+              <textarea
+                placeholder="content"
+                value={postForm.content}
+                onChange={(e) => setPostForm({ ...postForm, content: e.target.value })}
+              ></textarea>
+              <button type="submit">Submit post</button>
+            </form>
+          </div>
+        </div>
+
+        <div className="tile" style={{ marginTop: 12 }}>
+          <header className="tile__header">
+            <div>
+              <p className="eyebrow">Posts</p>
+              <strong>Thread timeline</strong>
+            </div>
+            <span className="badge">GET /threads/:id/posts</span>
+          </header>
           <PostsList items={posts} />
         </div>
-
-        <div className="panel" style={{ marginTop: 12 }}>
-          <h3>Add post</h3>
-          <form className="grid" style={{ gap: 10 }} onSubmit={handleAddPost}>
-            <input
-              type="text"
-              placeholder="user_id"
-              value={postForm.user_id}
-              onChange={(e) => setPostForm({ ...postForm, user_id: e.target.value })}
-            />
-            <textarea
-              placeholder="content"
-              value={postForm.content}
-              onChange={(e) => setPostForm({ ...postForm, content: e.target.value })}
-            ></textarea>
-            <button type="submit">Submit post</button>
-          </form>
-        </div>
       </section>
 
-      <p className="status" style={{ color: status.error ? "#ffb3b3" : undefined }}>{status.text}</p>
-    </>
+      <div className={`status-bar ${status.error ? "error" : ""}`}>
+        <span>{status.text}</span>
+      </div>
+    </div>
   );
 }

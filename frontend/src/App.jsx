@@ -5,6 +5,7 @@ import { UserPostsPage } from "./pages/UserPostsPage.tsx";
 import { ProgressPage } from "./pages/ProgressPage.tsx";
 import { RecommendPage } from "./pages/RecommendPage.tsx";
 import { HomePage } from "./pages/HomePage.tsx";
+import { GraphDataPage } from "./pages/GraphDataPage.tsx";
 
 export default function App() {
   return (
@@ -15,17 +16,20 @@ export default function App() {
             BDNR frontend
           </Link>
           <nav className="flex gap-3 text-sm text-slate-200">
-            <Link className="hover:underline" to="/recommend">
-              Recomendaciones
-            </Link>
-            <Link className="hover:underline" to="/recommend/progress">
-              Progreso
-            </Link>
-            <Link className="hover:underline" to="/users/demo-user/posts">
-              Posts usuario
-            </Link>
-          </nav>
-        </div>
+          <Link className="hover:underline" to="/recommend">
+            Recomendaciones
+          </Link>
+          <Link className="hover:underline" to="/recommend/progress">
+            Progreso
+          </Link>
+          <Link className="hover:underline" to="/recommend/data">
+            Datos grafo
+          </Link>
+          <Link className="hover:underline" to="/users/demo-user/posts">
+            Posts usuario
+          </Link>
+        </nav>
+      </div>
       </header>
 
       <main>
@@ -35,6 +39,7 @@ export default function App() {
           <Route path="/threads/:threadId" element={<ThreadPage />} />
           <Route path="/users/:userId/posts" element={<UserPostsPage />} />
           <Route path="/recommend/progress" element={<ProgressPage />} />
+          <Route path="/recommend/data" element={<GraphDataPage />} />
           <Route path="/recommend/:userId" element={<RecommendPage />} />
           <Route path="/recommend" element={<RecommendPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -168,6 +168,25 @@ def list_threads_by_course(course_id: str, limit: int = 20):
     ]
 
 
+def list_courses(limit: int = 100):
+    """
+    Devuelve los course_id presentes en threads_by_course (distintos).
+    """
+    if not session:
+        init_cassandra()
+    safe_limit = max(1, min(int(limit), 500))
+    q = SimpleStatement(
+        f"""
+        SELECT DISTINCT course_id
+        FROM threads_by_course
+        LIMIT {safe_limit}
+    """,
+        consistency_level=CL_READ,
+    )
+    rows = session.execute(q)
+    return [r.course_id for r in rows if r.course_id]
+
+
 def get_thread_metadata(thread_id: str):
     if not session:
         init_cassandra()

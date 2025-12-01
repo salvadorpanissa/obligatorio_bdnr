@@ -9,6 +9,7 @@ from database.cassandra import (
     create_post,
     list_posts_by_thread,
     list_posts_by_user,
+    list_courses,
 )
 
 router = APIRouter(prefix="/api", tags=["forum"])
@@ -31,6 +32,11 @@ class PostCreate(BaseModel):
 @router.get("/courses/{course_id}/threads")
 def api_list_threads(course_id: str, limit: int = Query(20, le=100)):
     return list_threads_by_course(course_id, limit=limit)
+
+
+@router.get("/courses")
+def api_list_courses(limit: int = Query(100, le=500)):
+    return list_courses(limit=limit)
 
 
 @router.post("/courses/{course_id}/threads", status_code=201)

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+import uuid
 
 from database.cassandra import (
     create_thread,
@@ -55,7 +56,10 @@ def api_create_thread_body(payload: ThreadCreateWithCourse):
 
 @router.get("/threads/{thread_id}")
 def api_get_thread(thread_id: str):
-    data = get_thread_metadata(thread_id)
+    try:
+        data = get_thread_metadata(thread_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid thread_id")
     if not data:
         raise HTTPException(status_code=404, detail="Thread not found")
     return data
@@ -63,13 +67,25 @@ def api_get_thread(thread_id: str):
 
 @router.get("/threads/{thread_id}/posts")
 def api_list_posts(thread_id: str, limit: int = Query(100, le=500)):
-    return list_posts_by_thread(thread_id, limit=limit)
+    try:
+        return list_posts_by_thread(thread_id, limit=limit)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid thread_id")
 
 
 @router.post("/threads/{thread_id}/posts", status_code=201)
 def api_create_post(thread_id: str, payload: PostCreate):
-    # podrías validar que el thread exista llamando a get_thread_metadata() antes
-    return create_post(thread_id, payload.user_id, payload.content)
+    try:
+        uuid.UUID(thread_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid thread_id")
+
+    try:
+        return create_post(thread_id, payload.user_id, payload.content)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    except ValueError as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.get("/users/{user_id}/posts")

@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -10,9 +12,11 @@ from routers.recommend import router as recommend_router, router_api as recommen
 
 app = FastAPI(title="BDNR Backend", version="1.0")
 
+allowed_origins = os.getenv("CORS_ORIGINS")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

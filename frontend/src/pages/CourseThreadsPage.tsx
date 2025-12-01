@@ -8,6 +8,7 @@ type Thread = {
   author_id: string;
   created_at: string;
   last_activity_at: string | null;
+  post_count?: number;
 };
 
 export function CourseThreadsPage() {
@@ -15,34 +16,51 @@ export function CourseThreadsPage() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [title, setTitle] = useState("");
   const [authorId, setAuthorId] = useState("user-123"); // en serio deberías sacarlo del auth
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!courseId) return;
+    const loadThreads = async () => {
+      if (!courseId) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`${API_BASE}/courses/${courseId}/threads`);
+        if (!res.ok) throw new Error("No se pudieron cargar los hilos");
+        const data = await res.json();
+        setThreads(data);
+      } catch (err: any) {
+        setError(err?.message || "Error desconocido");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    fetch(`${API_BASE}/courses/${courseId}/threads`)
-      .then((res) => res.json())
-      .then(setThreads)
-      .catch((err) => console.error(err));
+    loadThreads();
   }, [courseId]);
 
   const handleCreateThread = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!courseId || !title.trim()) return;
 
-    const res = await fetch(`${API_BASE}/courses/${courseId}/threads`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, author_id: authorId }),
-    });
+    try {
+      const res = await fetch(`${API_BASE}/courses/${courseId}/threads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, author_id: authorId }),
+      });
 
-    if (!res.ok) {
-      console.error("Error creando thread");
-      return;
+      if (!res.ok) {
+        const detail = await res.text();
+        throw new Error(detail || "Error creando thread");
+      }
+
+      const created = await res.json();
+      setThreads((prev) => [created, ...prev]);
+      setTitle("");
+    } catch (err: any) {
+      setError(err?.message || "No se pudo crear el hilo");
     }
-
-    const created = await res.json();
-    setThreads((prev) => [created, ...prev]);
-    setTitle("");
   };
 
   return (
@@ -66,6 +84,11 @@ export function CourseThreadsPage() {
         </button>
       </form>
 
+      {loading && (
+        <p className="text-sm text-gray-500">Cargando hilos del curso...</p>
+      )}
+      {error && <p className="text-sm text-red-500">{error}</p>}
+
       <ul className="space-y-2">
         {threads.map((t) => (
           <li key={t.thread_id} className="border rounded p-3">
@@ -77,6 +100,13 @@ export function CourseThreadsPage() {
             </Link>
             <div className="text-xs text-gray-600">
               por {t.author_id} • {new Date(t.created_at).toLocaleString()}
+            </div>
+            <div className="text-xs text-gray-500">
+              Última actividad:{" "}
+              {t.last_activity_at
+                ? new Date(t.last_activity_at).toLocaleString()
+                : "Sin actividad"}{" "}
+              • {t.post_count ?? 0} posts
             </div>
           </li>
         ))}

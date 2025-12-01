@@ -12,7 +12,9 @@ from routers.recommend import router as recommend_router, router_api as recommen
 
 app = FastAPI(title="BDNR Backend", version="1.0")
 
-allowed_origins = os.getenv("CORS_ORIGINS")
+# Parse comma-separated origins from env; fallback to allow all for local dev
+origins_env = os.getenv("CORS_ORIGINS", "*")
+allowed_origins = [o.strip() for o in origins_env.split(",") if o.strip()] or ["*"]
 
 app.add_middleware(
     CORSMiddleware,

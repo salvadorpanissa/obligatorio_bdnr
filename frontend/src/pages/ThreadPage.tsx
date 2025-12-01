@@ -29,12 +29,6 @@ export function ThreadPage() {
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const sortPosts = (items: Post[]) =>
-    [...items].sort(
-      (a, b) =>
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
-
   const loadThread = async () => {
     if (!threadId) return;
     setLoading(true);
@@ -62,7 +56,7 @@ export function ThreadPage() {
       const meta = await metaRes.json();
       const postsData: Post[] = await postsRes.json();
       setThread(meta);
-      setPosts(sortPosts(postsData));
+      setPosts(postsData);
     } catch (err: any) {
       setThread(null);
       setPosts([]);
@@ -96,7 +90,7 @@ export function ThreadPage() {
       }
 
       const created: Post = await res.json();
-      setPosts((prev) => sortPosts([...prev, created]));
+      setPosts((prev) => [...prev, created]);
       setThread((prev) =>
         prev
           ? {

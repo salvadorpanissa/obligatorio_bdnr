@@ -270,3 +270,128 @@ def recomendar(user_id, limit=10):
         "by_similar_users": by_similar,
         "by_errors_and_interests": by_errors_interests,
     }
+
+
+# --------- Getters para exponer datos de tablas/relaciones ----------
+def list_users():
+    _ensure_driver()
+    with driver.session() as s:
+        result = s.run("MATCH (u:User) RETURN u ORDER BY u.user_id")
+        return [dict(r["u"]) for r in result]
+
+
+def list_exercises():
+    _ensure_driver()
+    with driver.session() as s:
+        result = s.run("MATCH (e:Exercise) RETURN e ORDER BY e.exercise_id")
+        return [dict(r["e"]) for r in result]
+
+
+def list_skills():
+    _ensure_driver()
+    with driver.session() as s:
+        result = s.run("MATCH (s:Skill) RETURN s ORDER BY s.skill_id")
+        return [dict(r["s"]) for r in result]
+
+
+def list_interests():
+    _ensure_driver()
+    with driver.session() as s:
+        result = s.run("MATCH (i:Interest) RETURN i ORDER BY i.interest_id")
+        return [dict(r["i"]) for r in result]
+
+
+def list_error_types():
+    _ensure_driver()
+    with driver.session() as s:
+        result = s.run("MATCH (e:ErrorType) RETURN e ORDER BY e.error_id")
+        return [dict(r["e"]) for r in result]
+
+
+def list_performed(limit=200):
+    _ensure_driver()
+    with driver.session() as s:
+        result = s.run("""
+            MATCH (u:User)-[p:PERFORMED]->(e:Exercise)
+            RETURN u.user_id AS user_id,
+                   e.exercise_id AS exercise_id,
+                   p.correct_ratio AS correct_ratio,
+                   p.attempts AS attempts,
+                   p.performed_at AS performed_at
+            ORDER BY performed_at DESC
+            LIMIT $limit
+        """, limit=limit)
+        return [dict(r) for r in result]
+
+
+def list_difficulties(limit=200):
+    _ensure_driver()
+    with driver.session() as s:
+        result = s.run("""
+            MATCH (u:User)-[d:HAS_DIFFICULTY]->(s:Skill)
+            RETURN u.user_id AS user_id,
+                   s.skill_id AS skill_id,
+                   d.error_score AS error_score,
+                   d.updated_at AS updated_at
+            ORDER BY d.error_score DESC
+            LIMIT $limit
+        """, limit=limit)
+        return [dict(r) for r in result]
+
+
+def list_user_errors(limit=200):
+    _ensure_driver()
+    with driver.session() as s:
+        result = s.run("""
+            MATCH (u:User)-[m:MAKES_ERROR]->(e:ErrorType)
+            RETURN u.user_id AS user_id,
+                   e.error_id AS error_id,
+                   m.frequency AS frequency,
+                   m.updated_at AS updated_at
+            ORDER BY m.frequency DESC
+            LIMIT $limit
+        """, limit=limit)
+        return [dict(r) for r in result]
+
+
+def list_user_interests(limit=200):
+    _ensure_driver()
+    with driver.session() as s:
+        result = s.run("""
+            MATCH (u:User)-[r:INTERESTED_IN]->(i:Interest)
+            RETURN u.user_id AS user_id,
+                   i.interest_id AS interest_id,
+                   r.weight AS weight,
+                   r.updated_at AS updated_at
+            ORDER BY r.weight DESC
+            LIMIT $limit
+        """, limit=limit)
+        return [dict(r) for r in result]
+
+
+def list_tags(limit=200):
+    _ensure_driver()
+    with driver.session() as s:
+        result = s.run("""
+            MATCH (e:Exercise)-[:TAGGED_AS]->(i:Interest)
+            RETURN e.exercise_id AS exercise_id,
+                   i.interest_id AS interest_id
+            LIMIT $limit
+        """, limit=limit)
+        return [dict(r) for r in result]
+
+
+def list_similarities(limit=200):
+    _ensure_driver()
+    with driver.session() as s:
+        result = s.run("""
+            MATCH (u1:User)-[s:SIMILAR_TO]->(u2:User)
+            RETURN u1.user_id AS user_id,
+                   u2.user_id AS similar_to,
+                   s.similarity_score AS similarity_score,
+                   s.metric AS metric,
+                   s.updated_at AS updated_at
+            ORDER BY similarity_score DESC
+            LIMIT $limit
+        """, limit=limit)
+        return [dict(r) for r in result]

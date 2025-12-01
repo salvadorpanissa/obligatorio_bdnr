@@ -739,6 +739,91 @@ export function GraphDataPage() {
           </form>
         )}
       </div>
+
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Lectura de datos (GET)</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <DataTable title="Usuarios" endpoint="/data/users" columns={["user_id", "primary_language", "current_level", "streak"]} />
+          <DataTable title="Ejercicios" endpoint="/data/exercises" columns={["exercise_id", "type", "difficulty", "language"]} />
+          <DataTable title="Skills" endpoint="/data/skills" columns={["skill_id", "name", "category", "level"]} />
+          <DataTable title="Intereses" endpoint="/data/interests" columns={["interest_id", "name", "category"]} />
+          <DataTable title="Tipos de error" endpoint="/data/error-types" columns={["error_id", "description", "category"]} />
+          <DataTable title="Performed" endpoint="/data/performed" columns={["user_id", "exercise_id", "correct_ratio", "attempts", "performed_at"]} />
+          <DataTable title="Dificultades" endpoint="/data/difficulties" columns={["user_id", "skill_id", "error_score", "updated_at"]} />
+          <DataTable title="Errores de usuario" endpoint="/data/user-errors" columns={["user_id", "error_id", "frequency", "updated_at"]} />
+          <DataTable title="Intereses de usuario" endpoint="/data/user-interests" columns={["user_id", "interest_id", "weight", "updated_at"]} />
+          <DataTable title="Tags" endpoint="/data/tags" columns={["exercise_id", "interest_id"]} />
+          <DataTable title="Similitudes" endpoint="/data/similarities" columns={["user_id", "similar_to", "similarity_score", "metric", "updated_at"]} />
+        </div>
+      </div>
+    </div>
+  );
+}
+type DataTableProps = {
+  title: string;
+  endpoint: string;
+  columns: string[];
+};
+
+function DataTable({ title, endpoint, columns }: DataTableProps) {
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchRows = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${RECOMMEND_BASE}${endpoint}`);
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const data = await res.json();
+      setRows(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      setError(err?.message || "Error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="border border-white/10 rounded-lg p-4 space-y-3 bg-white/5">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs text-gray-400 uppercase tracking-wide">GET {endpoint}</p>
+          <h2 className="font-semibold text-lg">{title}</h2>
+        </div>
+        <button className="btn" onClick={fetchRows} disabled={loading}>
+          {loading ? "Cargando..." : "Refrescar"}
+        </button>
+      </div>
+      {error && <p className="text-sm text-red-400">{error}</p>}
+      {rows.length === 0 && !loading && <p className="text-sm text-gray-500">Sin datos</p>}
+      {rows.length > 0 && (
+        <div className="overflow-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr>
+                {columns.map((c) => (
+                  <th key={c} className="text-left text-gray-400 font-normal pr-3 pb-1 border-b border-white/10">
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, idx) => (
+                <tr key={idx} className="border-b border-white/5">
+                  {columns.map((c) => (
+                    <td key={c} className="pr-3 py-1 text-gray-200 whitespace-pre">
+                      {String(row[c] ?? "")}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

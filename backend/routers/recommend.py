@@ -8,6 +8,17 @@ from database.neo4j import (
     recomendar as recommend_graph,
     register_performance,
     registrar_progreso,
+    list_users,
+    list_exercises,
+    list_skills,
+    list_interests,
+    list_error_types,
+    list_performed,
+    list_difficulties,
+    list_user_errors,
+    list_user_interests,
+    list_tags,
+    list_similarities,
     set_difficulty,
     set_similarity_pairs,
     set_user_error,
@@ -198,6 +209,62 @@ def recommend_user(user_id: str):
     return recommend_graph(user_id)
 
 
+# getters para datos base y relaciones
+@router.get("/data/users")
+def get_users():
+    return list_users()
+
+
+@router.get("/data/exercises")
+def get_exercises():
+    return list_exercises()
+
+
+@router.get("/data/skills")
+def get_skills():
+    return list_skills()
+
+
+@router.get("/data/interests")
+def get_interests():
+    return list_interests()
+
+
+@router.get("/data/error-types")
+def get_error_types():
+    return list_error_types()
+
+
+@router.get("/data/performed")
+def get_performed(limit: int = 200):
+    return list_performed(limit=limit)
+
+
+@router.get("/data/difficulties")
+def get_difficulties(limit: int = 200):
+    return list_difficulties(limit=limit)
+
+
+@router.get("/data/user-errors")
+def get_user_errors(limit: int = 200):
+    return list_user_errors(limit=limit)
+
+
+@router.get("/data/user-interests")
+def get_user_interests(limit: int = 200):
+    return list_user_interests(limit=limit)
+
+
+@router.get("/data/tags")
+def get_tags(limit: int = 200):
+    return list_tags(limit=limit)
+
+
+@router.get("/data/similarities")
+def get_similarities(limit: int = 200):
+    return list_similarities(limit=limit)
+
+
 # aliases under /api/recommend for clients that keep /api prefix
 @router_api.post("/progress")
 def progress_api(data: Progress):
@@ -267,3 +334,59 @@ def log_recommendation_edge_api(payload: RecommendationLog):
 @router_api.get("/{user_id}")
 def recommend_user_api(user_id: str):
     return recommend_user(user_id)
+
+
+# data getters under /api/recommend/data/...
+@router_api.get("/data/users")
+def get_users_api():
+    return get_users()
+
+
+@router_api.get("/data/exercises")
+def get_exercises_api():
+    return get_exercises()
+
+
+@router_api.get("/data/skills")
+def get_skills_api():
+    return get_skills()
+
+
+@router_api.get("/data/interests")
+def get_interests_api():
+    return get_interests()
+
+
+@router_api.get("/data/error-types")
+def get_error_types_api():
+    return get_error_types()
+
+
+@router_api.get("/data/performed")
+def get_performed_api(limit: int = 200):
+    return get_performed(limit=limit)
+
+
+@router_api.get("/data/difficulties")
+def get_difficulties_api(limit: int = 200):
+    return get_difficulties(limit=limit)
+
+
+@router_api.get("/data/user-errors")
+def get_user_errors_api(limit: int = 200):
+    return get_user_errors(limit=limit)
+
+
+@router_api.get("/data/user-interests")
+def get_user_interests_api(limit: int = 200):
+    return get_user_interests(limit=limit)
+
+
+@router_api.get("/data/tags")
+def get_tags_api(limit: int = 200):
+    return get_tags(limit=limit)
+
+
+@router_api.get("/data/similarities")
+def get_similarities_api(limit: int = 200):
+    return get_similarities(limit=limit)

@@ -19,6 +19,7 @@ from database.neo4j import (
     list_user_interests,
     list_tags,
     list_similarities,
+    list_recommendations,
     set_difficulty,
     set_similarity_pairs,
     set_user_error,
@@ -265,6 +266,11 @@ def get_similarities(limit: int = 200):
     return list_similarities(limit=limit)
 
 
+@router.get("/data/recommended")
+def get_recommended(limit: int = 200):
+    return list_recommendations(limit=limit)
+
+
 # aliases under /api/recommend for clients that keep /api prefix
 @router_api.post("/progress")
 def progress_api(data: Progress):
@@ -390,3 +396,8 @@ def get_tags_api(limit: int = 200):
 @router_api.get("/data/similarities")
 def get_similarities_api(limit: int = 200):
     return get_similarities(limit=limit)
+
+
+@router_api.get("/data/recommended")
+def get_recommended_api(limit: int = 200):
+    return get_recommended(limit=limit)

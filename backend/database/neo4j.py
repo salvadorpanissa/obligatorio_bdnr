@@ -395,3 +395,19 @@ def list_similarities(limit=200):
             LIMIT $limit
         """, limit=limit)
         return [dict(r) for r in result]
+
+
+def list_recommendations(limit=200):
+    _ensure_driver()
+    with driver.session() as s:
+        result = s.run("""
+            MATCH (u:User)-[r:RECOMMENDED]->(e:Exercise)
+            RETURN u.user_id AS user_id,
+                   e.exercise_id AS exercise_id,
+                   r.strategy AS strategy,
+                   r.accepted AS accepted,
+                   r.timestamp AS timestamp
+            ORDER BY r.timestamp DESC
+            LIMIT $limit
+        """, limit=limit)
+        return [dict(r) for r in result]

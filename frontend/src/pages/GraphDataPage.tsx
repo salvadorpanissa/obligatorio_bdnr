@@ -16,6 +16,56 @@ const numberOrUndefined = (val: string) => {
   return Number.isNaN(parsed) ? undefined : parsed;
 };
 
+const formatCellValue = (val: any): string => {
+  if (val === null || val === undefined) return "";
+  if (val instanceof Date) return val.toISOString();
+  if (typeof val === "string" || typeof val === "number" || typeof val === "boolean")
+    return String(val);
+  if (Array.isArray(val)) return val.map(formatCellValue).join(", ");
+  if (typeof val === "object") {
+    if ("_DateTime__date" in val && "_DateTime__time" in val) {
+      const dateObj: any = (val as any)["_DateTime__date"];
+      const timeObj: any = (val as any)["_DateTime__time"];
+      const date = new Date(
+        Date.UTC(
+          dateObj._Date__year ?? dateObj.year ?? 1970,
+          (dateObj._Date__month ?? dateObj.month ?? 1) - 1,
+          dateObj._Date__day ?? dateObj.day ?? 1,
+          timeObj._Time__hour ?? timeObj.hour ?? 0,
+          timeObj._Time__minute ?? timeObj.minute ?? 0,
+          timeObj._Time__second ?? timeObj.second ?? 0,
+          Math.floor((timeObj._Time__nanosecond ?? timeObj.nanosecond ?? 0) / 1e6)
+        )
+      );
+      return date.toISOString().replace("T", " ").replace("Z", " UTC");
+    }
+    if ("year" in val && "month" in val && "day" in val) {
+      const dateObj: any = val;
+      const date = new Date(
+        Date.UTC(
+          dateObj.year,
+          (dateObj.month || 1) - 1,
+          dateObj.day || 1,
+          dateObj.hour || 0,
+          dateObj.minute || 0,
+          dateObj.second || 0,
+          Math.floor((dateObj.nanosecond || 0) / 1e6)
+        )
+      );
+      return date.toISOString().replace("T", " ").replace("Z", " UTC");
+    }
+    if ("low" in val && "high" in val) {
+      const low = (val as any).low;
+      const high = (val as any).high;
+      if (typeof low === "number" && typeof high === "number") {
+        return String(high * 2 ** 32 + low);
+      }
+    }
+    return JSON.stringify(val);
+  }
+  return String(val);
+};
+
 async function postJson(path: string, payload: any): Promise<void> {
   const res = await fetch(`${RECOMMEND_BASE}${path}`, {
     method: "POST",
@@ -743,17 +793,74 @@ export function GraphDataPage() {
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Lectura de datos (GET)</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <DataTable title="Usuarios" endpoint="/data/users" columns={["user_id", "primary_language", "current_level", "streak"]} />
-          <DataTable title="Ejercicios" endpoint="/data/exercises" columns={["exercise_id", "type", "difficulty", "language"]} />
-          <DataTable title="Skills" endpoint="/data/skills" columns={["skill_id", "name", "category", "level"]} />
-          <DataTable title="Intereses" endpoint="/data/interests" columns={["interest_id", "name", "category"]} />
-          <DataTable title="Tipos de error" endpoint="/data/error-types" columns={["error_id", "description", "category"]} />
-          <DataTable title="Performed" endpoint="/data/performed" columns={["user_id", "exercise_id", "correct_ratio", "attempts", "performed_at"]} />
-          <DataTable title="Dificultades" endpoint="/data/difficulties" columns={["user_id", "skill_id", "error_score", "updated_at"]} />
-          <DataTable title="Errores de usuario" endpoint="/data/user-errors" columns={["user_id", "error_id", "frequency", "updated_at"]} />
-          <DataTable title="Intereses de usuario" endpoint="/data/user-interests" columns={["user_id", "interest_id", "weight", "updated_at"]} />
-          <DataTable title="Tags" endpoint="/data/tags" columns={["exercise_id", "interest_id"]} />
-          <DataTable title="Similitudes" endpoint="/data/similarities" columns={["user_id", "similar_to", "similarity_score", "metric", "updated_at"]} />
+          <DataTable
+            title="Usuarios"
+            endpoint="/data/users"
+            columns={["user_id", "primary_language", "current_level", "streak"]}
+          />
+          <DataTable
+            title="Ejercicios"
+            endpoint="/data/exercises"
+            columns={["exercise_id", "type", "difficulty", "language"]}
+          />
+          <DataTable
+            title="Skills"
+            endpoint="/data/skills"
+            columns={["skill_id", "name", "category", "level"]}
+          />
+          <DataTable
+            title="Intereses"
+            endpoint="/data/interests"
+            columns={["interest_id", "name", "category"]}
+          />
+          <DataTable
+            title="Tipos de error"
+            endpoint="/data/error-types"
+            columns={["error_id", "description", "category"]}
+          />
+          <DataTable
+            title="Performed"
+            endpoint="/data/performed"
+            columns={[
+              "user_id",
+              "exercise_id",
+              "correct_ratio",
+              "attempts",
+              "performed_at",
+            ]}
+          />
+          <DataTable
+            title="Dificultades"
+            endpoint="/data/difficulties"
+            columns={["user_id", "skill_id", "error_score", "updated_at"]}
+          />
+          <DataTable
+            title="Errores de usuario"
+            endpoint="/data/user-errors"
+            columns={["user_id", "error_id", "frequency", "updated_at"]}
+          />
+          <DataTable
+            title="Intereses de usuario"
+            endpoint="/data/user-interests"
+            columns={["user_id", "interest_id", "weight", "updated_at"]}
+          />
+
+          <DataTable
+            title="Similitudes"
+            endpoint="/data/similarities"
+            columns={[
+              "user_id",
+              "similar_to",
+              "similarity_score",
+              "metric",
+              "updated_at",
+            ]}
+          />
+          <DataTable
+            title="Recomendadas"
+            endpoint="/data/recommended"
+            columns={["user_id", "exercise_id", "strategy", "accepted", "timestamp"]}
+          />
         </div>
       </div>
     </div>
@@ -789,7 +896,9 @@ function DataTable({ title, endpoint, columns }: DataTableProps) {
     <div className="border border-white/10 rounded-lg p-4 space-y-3 bg-white/5">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs text-gray-400 uppercase tracking-wide">GET {endpoint}</p>
+          <p className="text-xs text-gray-400 uppercase tracking-wide">
+            GET {endpoint}
+          </p>
           <h2 className="font-semibold text-lg">{title}</h2>
         </div>
         <button className="btn" onClick={fetchRows} disabled={loading}>
@@ -797,14 +906,19 @@ function DataTable({ title, endpoint, columns }: DataTableProps) {
         </button>
       </div>
       {error && <p className="text-sm text-red-400">{error}</p>}
-      {rows.length === 0 && !loading && <p className="text-sm text-gray-500">Sin datos</p>}
+      {rows.length === 0 && !loading && (
+        <p className="text-sm text-gray-500">Sin datos</p>
+      )}
       {rows.length > 0 && (
         <div className="overflow-auto">
           <table className="w-full text-sm">
             <thead>
               <tr>
                 {columns.map((c) => (
-                  <th key={c} className="text-left text-gray-400 font-normal pr-3 pb-1 border-b border-white/10">
+                  <th
+                    key={c}
+                    className="text-left text-gray-400 font-normal pr-3 pb-1 border-b border-white/10"
+                  >
                     {c}
                   </th>
                 ))}
@@ -814,8 +928,11 @@ function DataTable({ title, endpoint, columns }: DataTableProps) {
               {rows.map((row, idx) => (
                 <tr key={idx} className="border-b border-white/5">
                   {columns.map((c) => (
-                    <td key={c} className="pr-3 py-1 text-gray-200 whitespace-pre">
-                      {String(row[c] ?? "")}
+                    <td
+                      key={c}
+                      className="pr-3 py-1 text-gray-200 whitespace-pre"
+                    >
+                      {formatCellValue(row[c])}
                     </td>
                   ))}
                 </tr>

@@ -90,7 +90,7 @@ export function HomePage() {
           <div className="flex gap-2">
             <input
               className="flex-1 border rounded px-2 py-1"
-              placeholder="course_id"
+              placeholder="course"
               value={courseId}
               onChange={(e) => setCourseId(e.target.value)}
             />

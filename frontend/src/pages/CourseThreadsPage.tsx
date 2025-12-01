@@ -15,7 +15,7 @@ export function CourseThreadsPage() {
   const { courseId } = useParams<{ courseId: string }>();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [title, setTitle] = useState("");
-  const [authorId, setAuthorId] = useState("user-123"); // en serio deberías sacarlo del auth
+  const [authorId, setAuthorId] = useState("user-123");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

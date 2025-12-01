@@ -99,20 +99,20 @@ def create_thread(course_id: str, title: str, author_id: str):
     q1 = SimpleStatement("""
         INSERT INTO threads_by_course (
             course_id, thread_id, title, author_id, created_at, last_activity_at
-        ) VALUES (?, ?, ?, ?, ?, ?)
+        ) VALUES (%s, %s, %s, %s, %s, %s)
     """, consistency_level=CL_WRITE)
 
     # 2) thread_metadata
     q2 = SimpleStatement("""
         INSERT INTO thread_metadata (
             thread_id, course_id, title, author_id, created_at, last_activity_at
-        ) VALUES (?, ?, ?, ?, ?, ?)
+        ) VALUES (%s, %s, %s, %s, %s, %s)
     """, consistency_level=CL_WRITE)
 
     session.execute(q1, (course_id, thread_id, title, author_id, now, now))
     session.execute(q2, (thread_id, course_id, title, author_id, now, now))
     session.execute(SimpleStatement("""
-        UPDATE thread_counts SET post_count = post_count + 0 WHERE thread_id = ?
+        UPDATE thread_counts SET post_count = post_count + 0 WHERE thread_id = %s
     """, consistency_level=CL_WRITE), (thread_id,))
 
     return {
@@ -129,14 +129,32 @@ def create_thread(course_id: str, title: str, author_id: str):
 def list_threads_by_course(course_id: str, limit: int = 20):
     if not session:
         init_cassandra()
-    q = SimpleStatement("""
+    # Cassandra no admite bind markers en LIMIT, así que interpolamos el valor (sanitizado)
+    safe_limit = max(1, min(int(limit), 500))
+    q = SimpleStatement(
+        f"""
         SELECT thread_id, title, author_id, created_at, last_activity_at
         FROM threads_by_course
-        WHERE course_id = ?
-        LIMIT ?
-    """, consistency_level=CL_READ)
+        WHERE course_id = %s
+        LIMIT {safe_limit}
+    """,
+        consistency_level=CL_READ,
+    )
 
-    rows = session.execute(q, (course_id, limit))
+    rows = list(session.execute(q, (course_id,)))
+    counts: dict[uuid.UUID, int] = {}
+    if rows:
+        placeholders = ", ".join(["%s"] * len(rows))
+        counts_stmt = SimpleStatement(
+            f"""
+            SELECT thread_id, post_count FROM thread_counts
+            WHERE thread_id IN ({placeholders})
+        """,
+            consistency_level=CL_READ,
+        )
+        for c in session.execute(counts_stmt, tuple(r.thread_id for r in rows)):
+            counts[c.thread_id] = int(c.post_count) if c.post_count is not None else 0
+
     return [
         {
             "thread_id": str(r.thread_id),
@@ -144,6 +162,7 @@ def list_threads_by_course(course_id: str, limit: int = 20):
             "author_id": r.author_id,
             "created_at": r.created_at.isoformat(),
             "last_activity_at": r.last_activity_at.isoformat() if r.last_activity_at else None,
+            "post_count": counts.get(r.thread_id, 0),
         }
         for r in rows
     ]
@@ -156,7 +175,7 @@ def get_thread_metadata(thread_id: str):
     q = SimpleStatement("""
         SELECT thread_id, course_id, title, author_id, created_at, last_activity_at
         FROM thread_metadata
-        WHERE thread_id = ?
+        WHERE thread_id = %s
     """, consistency_level=CL_READ)
 
     row = session.execute(q, (tid,)).one()
@@ -164,7 +183,7 @@ def get_thread_metadata(thread_id: str):
         return None
 
     count_row = session.execute(SimpleStatement("""
-        SELECT post_count FROM thread_counts WHERE thread_id = ?
+        SELECT post_count FROM thread_counts WHERE thread_id = %s
     """, consistency_level=CL_READ), (tid,)).one()
     post_count = int(count_row.post_count) if count_row and count_row.post_count is not None else 0
 
@@ -186,32 +205,56 @@ def create_post(thread_id: str, user_id: str, content: str):
     post_id = uuid.uuid1()  # TIMEUUID, respeta el modelo
     now = datetime.now(timezone.utc)
 
+    meta_row = session.execute(
+        SimpleStatement(
+            """
+            SELECT course_id, created_at
+            FROM thread_metadata
+            WHERE thread_id = %s
+        """,
+            consistency_level=CL_READ,
+        ),
+        (tid,),
+    ).one()
+    if not meta_row:
+        raise LookupError("Thread not found")
+
     # posts_by_thread
     q_post_thread = SimpleStatement("""
         INSERT INTO posts_by_thread (
             thread_id, post_id, user_id, content, created_at
-        ) VALUES (?, ?, ?, ?, ?)
+        ) VALUES (%s, %s, %s, %s, %s)
     """, consistency_level=CL_WRITE)
 
     # posts_by_user
     q_post_user = SimpleStatement("""
         INSERT INTO posts_by_user (
             user_id, created_at, thread_id, post_id, content
-        ) VALUES (?, ?, ?, ?, ?)
+        ) VALUES (%s, %s, %s, %s, %s)
     """, consistency_level=CL_WRITE)
 
     # actualizar thread_metadata
     q_update_meta = SimpleStatement("""
         UPDATE thread_metadata
-        SET last_activity_at = ?
-        WHERE thread_id = ?
+        SET last_activity_at = %s
+        WHERE thread_id = %s
+    """, consistency_level=CL_WRITE)
+
+    q_update_thread_course = SimpleStatement("""
+        UPDATE threads_by_course
+        SET last_activity_at = %s
+        WHERE course_id = %s AND created_at = %s AND thread_id = %s
     """, consistency_level=CL_WRITE)
 
     session.execute(q_post_thread, (tid, post_id, user_id, content, now))
     session.execute(q_post_user, (user_id, now, tid, post_id, content))
     session.execute(q_update_meta, (now, tid))
+    session.execute(
+        q_update_thread_course,
+        (now, meta_row.course_id, meta_row.created_at, tid),
+    )
     session.execute(SimpleStatement("""
-        UPDATE thread_counts SET post_count = post_count + 1 WHERE thread_id = ?
+        UPDATE thread_counts SET post_count = post_count + 1 WHERE thread_id = %s
     """, consistency_level=CL_WRITE), (tid,))
 
     return {
@@ -226,14 +269,19 @@ def create_post(thread_id: str, user_id: str, content: str):
 def list_posts_by_thread(thread_id: str, limit: int = 100):
     if not session:
         init_cassandra()
-    q = SimpleStatement("""
+    safe_limit = max(1, min(int(limit), 500))
+    q = SimpleStatement(
+        f"""
         SELECT post_id, user_id, content, created_at
         FROM posts_by_thread
-        WHERE thread_id = ?
-        LIMIT ?
-    """, consistency_level=CL_READ)
+        WHERE thread_id = %s
+        LIMIT {safe_limit}
+    """,
+        consistency_level=CL_READ,
+    )
 
-    rows = session.execute(q, (uuid.UUID(thread_id), limit))
+    rows = list(session.execute(q, (uuid.UUID(thread_id),)))
+    rows.sort(key=lambda r: r.created_at or datetime.min.replace(tzinfo=timezone.utc))
     return [
         {
             "post_id": str(r.post_id),
@@ -248,14 +296,15 @@ def list_posts_by_thread(thread_id: str, limit: int = 100):
 def list_posts_by_user(user_id: str, limit: int = 50):
     if not session:
         init_cassandra()
-    q = SimpleStatement("""
+    safe_limit = max(1, min(int(limit), 500))
+    q = SimpleStatement(f"""
         SELECT created_at, thread_id, post_id, content
         FROM posts_by_user
-        WHERE user_id = ?
-        LIMIT ?
+        WHERE user_id = %s
+        LIMIT {safe_limit}
     """, consistency_level=CL_READ)
 
-    rows = session.execute(q, (user_id, limit))
+    rows = session.execute(q, (user_id,))
     return [
         {
             "thread_id": str(r.thread_id),

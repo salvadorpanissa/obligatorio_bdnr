@@ -56,6 +56,10 @@ textarea {
   max-width: 64rem;
 }
 
+.max-w-6xl {
+  max-width: 72rem;
+}
+
 .mx-auto {
   margin-left: auto;
   margin-right: auto;
@@ -188,6 +192,12 @@ textarea {
   }
 }
 
+@media (min-width: 1024px) {
+  .lg\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .font-bold {
   font-weight: 700;
 }
@@ -249,6 +259,14 @@ textarea {
   color: #ef4444;
 }
 
+.text-red-400 {
+  color: #f87171;
+}
+
+.text-green-400 {
+  color: #4ade80;
+}
+
 .uppercase {
   text-transform: uppercase;
 }
@@ -281,12 +299,20 @@ textarea {
   border-radius: 0.5rem;
 }
 
+.rounded-lg {
+  border-radius: 0.75rem;
+}
+
 .bg-\[\#0b1220\] {
   background-color: #0b1220;
 }
 
 .bg-white\/5 {
   background-color: rgba(255, 255, 255, 0.05);
+}
+
+.bg-black\/20 {
+  background-color: rgba(0, 0, 0, 0.2);
 }
 
 .backdrop-blur {
@@ -299,4 +325,29 @@ textarea {
 
 .min-h-\[80px\] {
   min-height: 80px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--card);
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
 }

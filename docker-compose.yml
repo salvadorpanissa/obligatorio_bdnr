@@ -11,6 +11,8 @@ services:
       CASSANDRA_START_RPC: "true"
       CASSANDRA_RPC_ADDRESS: 0.0.0.0
       CASSANDRA_BROADCAST_RPC_ADDRESS: cassandra
+    volumes:
+      - cassandra_data:/var/lib/cassandra
     healthcheck:
       test: ["CMD-SHELL", "cqlsh -e 'describe keyspaces'"]
       interval: 20s
@@ -63,3 +65,4 @@ networks:
 volumes:
   neo4j_data:
   neo4j_logs:
+  cassandra_data:

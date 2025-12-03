@@ -1,7 +1,8 @@
 # Obligatorio Base de Datos No Relacionales - Setiembre 2025
-Repositorio para requerimiento 4.
 
-Integrates:
+Repository for requirement 4.
+
+Members:
 * Salvador Panissa
 * Pablo Pereyra
 * Uriel Strimber

@@ -5,6 +5,7 @@ import { UserPostsPage } from "./pages/UserPostsPage.tsx";
 import { HomePage } from "./pages/HomePage.tsx";
 import { GraphDataPage } from "./pages/GraphDataPage.tsx";
 import { CassandraDataPage } from "./pages/CassandraDataPage.tsx";
+import { GraphPatternsPage } from "./pages/GraphPatternsPage.tsx";
 
 export default function App() {
   return (
@@ -15,6 +16,9 @@ export default function App() {
             BDNR frontend
           </Link>
           <nav className="flex gap-3 text-sm text-slate-200">
+          <Link className="hover:underline" to="/recommend/patterns">
+            Patrones grafo
+          </Link>
           <Link className="hover:underline" to="/recommend/data">
             Datos grafo
           </Link>
@@ -31,6 +35,7 @@ export default function App() {
           <Route path="/courses/:courseId/threads" element={<CourseThreadsPage />} />
           <Route path="/threads/:threadId" element={<ThreadPage />} />
           <Route path="/users/:userId/posts" element={<UserPostsPage />} />
+          <Route path="/recommend/patterns" element={<GraphPatternsPage />} />
           <Route path="/recommend/data" element={<GraphDataPage />} />
           <Route path="/cassandra/data" element={<CassandraDataPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

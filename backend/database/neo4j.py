@@ -272,6 +272,209 @@ def recomendar(user_id, limit=10):
     }
 
 
+def pattern_by_difficulty(user_id: str, threshold: float = 0.6, limit: int = 20):
+    """
+    Acceso: usuario -> dificultades -> ejercicios que evalúan esas skills.
+    """
+    _ensure_driver()
+    limit = max(1, min(limit, 200))
+    with driver.session() as s:
+        result = s.run(
+            """
+            MATCH (u:User {user_id: $user_id})-[d:HAS_DIFFICULTY]->(s:Skill)<-[:EVALUATES]-(e:Exercise)
+            WHERE d.error_score >= $threshold
+            RETURN e.exercise_id AS exercise_id,
+                   s.skill_id AS skill_id,
+                   d.error_score AS error_score,
+                   e.difficulty AS exercise_difficulty
+            ORDER BY d.error_score DESC, e.difficulty
+            LIMIT $limit
+        """,
+            user_id=user_id,
+            threshold=threshold,
+            limit=limit,
+        )
+        return [
+            {
+                "exercise_id": row["exercise_id"],
+                "skill_id": row["skill_id"],
+                "error_score": float(row["error_score"])
+                if row["error_score"] is not None
+                else None,
+                "exercise_difficulty": row["exercise_difficulty"],
+            }
+            for row in result
+        ]
+
+
+def pattern_by_similar_users(
+    user_id: str,
+    similarity_threshold: float = 0.8,
+    performance_threshold: float = 0.8,
+    limit: int = 20,
+):
+    """
+    Acceso colaborativo: usuarios similares -> ejercicios con buen rendimiento.
+    """
+    _ensure_driver()
+    limit = max(1, min(limit, 200))
+    with driver.session() as s:
+        result = s.run(
+            """
+            MATCH (u:User {user_id: $user_id})-[:HAS_DIFFICULTY]->(s:Skill)
+            MATCH (u)-[sim:SIMILAR_TO]->(v:User)
+            WHERE sim.similarity_score >= $similarity_threshold
+            MATCH (v)-[p:PERFORMED]->(e:Exercise)-[:EVALUATES]->(s)
+            WHERE p.correct_ratio >= $performance_threshold
+            RETURN e.exercise_id AS exercise_id,
+                   s.skill_id AS skill_id,
+                   sim.similarity_score AS similarity,
+                   avg(p.correct_ratio) AS performance
+            ORDER BY performance DESC, similarity DESC
+            LIMIT $limit
+        """,
+            user_id=user_id,
+            similarity_threshold=similarity_threshold,
+            performance_threshold=performance_threshold,
+            limit=limit,
+        )
+        return [
+            {
+                "exercise_id": row["exercise_id"],
+                "skill_id": row["skill_id"],
+                "similarity": float(row["similarity"])
+                if row["similarity"] is not None
+                else None,
+                "performance": float(row["performance"])
+                if row["performance"] is not None
+                else None,
+            }
+            for row in result
+        ]
+
+
+def pattern_by_errors(user_id: str, frequency_threshold: float = 0.7, limit: int = 20):
+    """
+    Errores recurrentes -> ejercicios etiquetados con ese error.
+    """
+    _ensure_driver()
+    limit = max(1, min(limit, 200))
+    with driver.session() as s:
+        result = s.run(
+            """
+            MATCH (u:User {user_id: $user_id})-[err:MAKES_ERROR]->(et:ErrorType)
+            WHERE err.frequency >= $frequency_threshold
+            MATCH (et)<-[:TAGGED_AS]-(e:Exercise)
+            RETURN e.exercise_id AS exercise_id,
+                   et.error_id AS error_id,
+                   err.frequency AS frequency
+            ORDER BY frequency DESC
+            LIMIT $limit
+        """,
+            user_id=user_id,
+            frequency_threshold=frequency_threshold,
+            limit=limit,
+        )
+        return [
+            {
+                "exercise_id": row["exercise_id"],
+                "error_id": row["error_id"],
+                "frequency": float(row["frequency"])
+                if row["frequency"] is not None
+                else None,
+            }
+            for row in result
+        ]
+
+
+def pattern_by_interests(
+    user_id: str,
+    weight_threshold: float = 0.0,
+    min_error_score: float = 0.0,
+    limit: int = 20,
+):
+    """
+    Intereses del usuario + skills con dificultad (opcional).
+    """
+    _ensure_driver()
+    limit = max(1, min(limit, 200))
+    with driver.session() as s:
+        result = s.run(
+            """
+            MATCH (u:User {user_id: $user_id})-[i:INTERESTED_IN]->(t:Interest)
+            WHERE i.weight >= $weight_threshold
+            MATCH (e:Exercise)-[:TAGGED_AS]->(t)
+            OPTIONAL MATCH (u)-[d:HAS_DIFFICULTY]->(s:Skill)<-[:EVALUATES]-(e)
+            WITH e, t, i, d
+            WHERE coalesce(d.error_score, 0) >= $min_error_score
+            RETURN e.exercise_id AS exercise_id,
+                   t.interest_id AS interest_id,
+                   i.weight AS interest_weight,
+                   d.error_score AS error_score
+            ORDER BY interest_weight DESC, error_score DESC
+            LIMIT $limit
+        """,
+            user_id=user_id,
+            weight_threshold=weight_threshold,
+            min_error_score=min_error_score,
+            limit=limit,
+        )
+        return [
+            {
+                "exercise_id": row["exercise_id"],
+                "interest_id": row["interest_id"],
+                "interest_weight": float(row["interest_weight"])
+                if row["interest_weight"] is not None
+                else None,
+                "error_score": float(row["error_score"])
+                if row["error_score"] is not None
+                else None,
+            }
+            for row in result
+        ]
+
+
+def pattern_multi_hop(
+    user_id: str, performance_threshold: float = 0.75, limit: int = 20
+):
+    """
+    Multi-salto: dificultades -> ejercicios -> otros usuarios -> nuevos ejercicios.
+    """
+    _ensure_driver()
+    limit = max(1, min(limit, 200))
+    with driver.session() as s:
+        result = s.run(
+            """
+            MATCH (u:User {user_id: $user_id})-[:HAS_DIFFICULTY]->(s:Skill)
+            MATCH (e:Exercise)-[:EVALUATES]->(s)
+            MATCH (other:User)-[p1:PERFORMED]->(e)
+            WHERE p1.correct_ratio >= $performance_threshold
+            WITH DISTINCT other, s
+            MATCH (other)-[p2:PERFORMED]->(rec:Exercise)
+            RETURN DISTINCT rec.exercise_id AS exercise_id,
+                            other.user_id AS source_user,
+                            s.skill_id AS related_skill,
+                            avg(p2.correct_ratio) AS avg_correct_ratio
+            ORDER BY avg_correct_ratio DESC
+            LIMIT $limit
+        """,
+            user_id=user_id,
+            performance_threshold=performance_threshold,
+            limit=limit,
+        )
+        return [
+            {
+                "exercise_id": row["exercise_id"],
+                "source_user": row["source_user"],
+                "related_skill": row["related_skill"],
+                "avg_correct_ratio": float(row["avg_correct_ratio"])
+                if row["avg_correct_ratio"] is not None
+                else None,
+            }
+            for row in result
+        ]
+
+
 # --------- Getters para exponer datos de tablas/relaciones ----------
 def list_users():
     _ensure_driver()

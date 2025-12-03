@@ -142,6 +142,21 @@ UNWIND ex.skills AS skill
 MATCH (s:Skill {skill_id: skill})
 MERGE (exn)-[:EVALUATES]->(s);
 
+// Tags de ejercicios a tipos de error (para pruebas de errores recurrentes)
+UNWIND [
+  ["ex_travel_1", "verb_tense"],
+  ["ex_travel_2", "verb_tense"],
+  ["ex_music_1", "verb_tense"],
+  ["ex_music_2", "spelling"],
+  ["ex_food_1", "gender_agreement"],
+  ["ex_food_2", "spelling"],
+  ["ex_tech_1", "word_order"],
+  ["ex_sports_1", "gender_agreement"]
+] AS etTag
+MATCH (exNode:Exercise {exercise_id: etTag[0]})
+MATCH (errNode:ErrorType {error_id: etTag[1]})
+MERGE (exNode)-[:TAGGED_AS]->(errNode);
+
 // ---------- Usuarios ----------
 UNWIND range(1, 20) AS n
 WITH n, right("000" + toString(n), 3) AS padded
@@ -272,6 +287,17 @@ SET
   p.correct_ratio = ratio,
   p.attempts = coalesce(p.attempts, 0) + 1,
   p.performed_at = datetime();
+
+// Errores adicionales para u001 (frecuencias altas para pruebas)
+MATCH (u001:User {user_id: "u001"})
+MATCH (eA:ErrorType {error_id: "verb_tense"})
+MERGE (u001)-[mA:MAKES_ERROR]->(eA)
+SET mA.frequency = 0.82, mA.updated_at = datetime();
+
+MATCH (u001:User {user_id: "u001"})
+MATCH (eB:ErrorType {error_id: "spelling"})
+MERGE (u001)-[mB:MAKES_ERROR]->(eB)
+SET mB.frequency = 0.76, mB.updated_at = datetime();
 
 // Similitudes (SIMILAR_TO)
 UNWIND [

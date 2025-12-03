@@ -8,6 +8,11 @@ from database.neo4j import (
     recomendar as recommend_graph,
     register_performance,
     registrar_progreso,
+    pattern_by_difficulty,
+    pattern_by_errors,
+    pattern_by_interests,
+    pattern_by_similar_users,
+    pattern_multi_hop,
     list_users,
     list_exercises,
     list_skills,
@@ -211,6 +216,49 @@ def recommend_user(user_id: str):
 
 
 # getters para datos base y relaciones
+@router.get("/patterns/by-difficulty")
+def pattern_difficulty(user_id: str, threshold: float = 0.6, limit: int = 20):
+    return pattern_by_difficulty(user_id, threshold, limit)
+
+
+@router.get("/patterns/by-similar-users")
+def pattern_similar_users(
+    user_id: str,
+    similarity_threshold: float = 0.8,
+    performance_threshold: float = 0.8,
+    limit: int = 20,
+):
+    return pattern_by_similar_users(
+        user_id, similarity_threshold, performance_threshold, limit
+    )
+
+
+@router.get("/patterns/by-errors")
+def pattern_errors(
+    user_id: str, frequency_threshold: float = 0.7, limit: int = 20
+):
+    return pattern_by_errors(user_id, frequency_threshold, limit)
+
+
+@router.get("/patterns/by-interests")
+def pattern_interests(
+    user_id: str,
+    weight_threshold: float = 0.0,
+    min_error_score: float = 0.0,
+    limit: int = 20,
+):
+    return pattern_by_interests(
+        user_id, weight_threshold, min_error_score, limit
+    )
+
+
+@router.get("/patterns/multi-hop")
+def pattern_multi_hop_endpoint(
+    user_id: str, performance_threshold: float = 0.75, limit: int = 20
+):
+    return pattern_multi_hop(user_id, performance_threshold, limit)
+
+
 @router.get("/data/users")
 def get_users():
     return list_users()
@@ -343,6 +391,49 @@ def recommend_user_api(user_id: str):
 
 
 # data getters under /api/recommend/data/...
+@router_api.get("/patterns/by-difficulty")
+def pattern_difficulty_api(user_id: str, threshold: float = 0.6, limit: int = 20):
+    return pattern_difficulty(user_id, threshold, limit)
+
+
+@router_api.get("/patterns/by-similar-users")
+def pattern_similar_users_api(
+    user_id: str,
+    similarity_threshold: float = 0.8,
+    performance_threshold: float = 0.8,
+    limit: int = 20,
+):
+    return pattern_similar_users(
+        user_id, similarity_threshold, performance_threshold, limit
+    )
+
+
+@router_api.get("/patterns/by-errors")
+def pattern_errors_api(
+    user_id: str, frequency_threshold: float = 0.7, limit: int = 20
+):
+    return pattern_errors(user_id, frequency_threshold, limit)
+
+
+@router_api.get("/patterns/by-interests")
+def pattern_interests_api(
+    user_id: str,
+    weight_threshold: float = 0.0,
+    min_error_score: float = 0.0,
+    limit: int = 20,
+):
+    return pattern_interests(
+        user_id, weight_threshold, min_error_score, limit
+    )
+
+
+@router_api.get("/patterns/multi-hop")
+def pattern_multi_hop_api(
+    user_id: str, performance_threshold: float = 0.75, limit: int = 20
+):
+    return pattern_multi_hop_endpoint(user_id, performance_threshold, limit)
+
+
 @router_api.get("/data/users")
 def get_users_api():
     return get_users()

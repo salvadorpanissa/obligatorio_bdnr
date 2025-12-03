@@ -1,5 +1,10 @@
 # obligatorio_bdnr
-Repositorio para requerimiento 3.
+Repositorio para requerimiento 4.
+
+Integrates:
+* Salvador Panissa
+* Pablo Pereyra
+* Uriel Strimber
 
 ## Sample data
 - Neo4j: open `cypher/seed/seedDuolingoSample.cypher` in Neo4j Browser and execute it as a single script.

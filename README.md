@@ -1,4 +1,4 @@
-# obligatorio_bdnr
+# Obligatorio Base de Datos No Relacionales - Setiembre 2025
 Repositorio para requerimiento 4.
 
 Integrates:
